@@ -1,5 +1,11 @@
 terraform {
   required_version = ">= 1.2"
+  backend "s3" {
+    bucket = "terraform-state-jirivasm"
+    key = "global/s3/terraform.tfstate"
+    region = "us-east-2"  
+    encrypt = true
+  }
 }
 #set up provider with latest version
 provider "aws" {
@@ -19,6 +25,33 @@ data "aws_eks_cluster_auth" "eks_cluster_auth" {
 }
 data "aws_availability_zones" "availability_zones" {
 
+}
+#S3 Buclket key
+resource "aws_kms_key" "bucket_key" {
+  description = "s3Bucket key to hide terraform state file"
+  deletion_window_in_days = 10  
+}
+#S3 Bucket Versioning
+resource "aws_s3_bucket_versioning" "versioning_example" {
+  bucket = aws_s3_bucket.terraform_state.bucket
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+#s3Bucket creation
+resource "aws_s3_bucket" "terraform_state"{
+  bucket = var.s3_bucket_name
+
+}
+#encrypting bucket info using Bucket Key
+resource "aws_s3_bucket_server_side_encryption_configuration" "aws_s3_bucket_server_side_encryption" {
+  bucket = aws_s3_bucket.terraform_state.bucket
+  rule {
+    apply_server_side_encryption_by_default{
+      kms_master_key_id = aws_kms_key.bucket_key.arn
+      sse_algorithm = "aws:kms"
+    }
+  }
 }
 #Adding a security group
 resource "aws_security_group" "all_worker_mngmt" {
