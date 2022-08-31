@@ -1,5 +1,6 @@
 terraform {
   required_version = ">= 1.2"
+  
   backend "s3" {
     bucket = "terraform-state-jirivasm"
     key = "global/s3/terraform.tfstate"
@@ -24,7 +25,6 @@ data "aws_eks_cluster_auth" "eks_cluster_auth" {
   name = module.eks.cluster_id
 }
 data "aws_availability_zones" "availability_zones" {
-
 }
 #S3 Buclket key
 resource "aws_kms_key" "bucket_key" {
@@ -41,7 +41,6 @@ resource "aws_s3_bucket_versioning" "versioning_example" {
 #s3Bucket creation
 resource "aws_s3_bucket" "terraform_state"{
   bucket = var.s3_bucket_name
-
 }
 #encrypting bucket info using Bucket Key
 resource "aws_s3_bucket_server_side_encryption_configuration" "aws_s3_bucket_server_side_encryption" {
@@ -68,6 +67,23 @@ resource "aws_security_group" "all_worker_mngmt" {
       "172.16.0.0/12",
     "192.168.0.0/16", ]
   }
+}
+data "aws_eks_cluster" "cluster_name" {
+  name = module.eks.cluster_id
+}
+#creating a keypair
+resource "tls_private_key" "rsa" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+#use created keypair
+resource "aws_key_pair" "my_key" {
+  key_name   = "my_key"
+  public_key = tls_private_key.rsa.public_key_openssh
+  }
+resource "local_file" "TF_Key" {
+    content  = tls_private_key.rsa.private_key_pem
+    filename = "TF_Key"
 }
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
@@ -117,7 +133,6 @@ module "eks" {
       additional_security_groups = [aws_security_group.all_worker_mngmt.id]
     }
   }
-
 }
 
 
